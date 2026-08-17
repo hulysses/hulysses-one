@@ -8,7 +8,7 @@ public class Product {
     private String name;
     private String description;
     private Double price;
-    private Boolean isActive = true;
+    private Boolean isActive = Boolean.TRUE;
 
     // manter enquanto nao implementa a tabela de precos e a tabela de relacionamento de produtos com fornecedores
     private BusinessPartner supplier;
