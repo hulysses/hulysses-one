@@ -2,10 +2,13 @@ package br.com.hulysses.hulysses_one.sales.presentation;
 
 import br.com.hulysses.hulysses_one.sales.application.SalesOrderService;
 import br.com.hulysses.hulysses_one.sales.domain.SalesOrder;
+import br.com.hulysses.hulysses_one.sales.presentation.dto.SalesOrderRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -19,9 +22,12 @@ public class SalesOrderController {
     }
 
     @PostMapping
-    public ResponseEntity<SalesOrder> create(@RequestBody SalesOrder order) {
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.create(order));
+    public ResponseEntity<SalesOrder> create(
+            @Valid @RequestBody SalesOrderRequest request
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(service.create(request));
     }
 
     @GetMapping
@@ -37,13 +43,13 @@ public class SalesOrderController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<SalesOrder> update(@PathVariable Long id, @RequestBody SalesOrder order) {
-
-        if (!id.equals(order.getId())) {
-            throw new IllegalArgumentException("Path id must match body id");
-        }
-
-        return ResponseEntity.ok(service.update(order));
+    public ResponseEntity<SalesOrder> update(
+            @PathVariable Long id,
+            @Valid @RequestBody SalesOrderRequest request
+    ) {
+        return ResponseEntity.ok(
+                service.update(id, request)
+        );
     }
 
     @DeleteMapping("/{id}")
@@ -67,8 +73,9 @@ public class SalesOrderController {
     }
 
     @GetMapping("/total")
-    public ResponseEntity<Double> totalSales() {
-
-        return ResponseEntity.ok(service.calculateTotalSales());
+    public ResponseEntity<BigDecimal> totalSales() {
+        return ResponseEntity.ok(
+                service.calculateTotalSales()
+        );
     }
 }

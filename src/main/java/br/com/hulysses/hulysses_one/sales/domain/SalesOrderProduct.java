@@ -1,17 +1,49 @@
 package br.com.hulysses.hulysses_one.sales.domain;
 
 import br.com.hulysses.hulysses_one.product.domain.Product;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
 
+@Entity
+@Table(name = "sales_order_product")
 public class SalesOrderProduct {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "sales_order_id",
+            nullable = false
+    )
+    @JsonIgnore
     private SalesOrder salesOrder;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "product_id",
+            nullable = false
+    )
     private Product product;
+
+    @Column(nullable = false)
     private Integer quantity;
 
-    public SalesOrderProduct(Long id, SalesOrder salesOrder, Product product, Integer quantity) {
-        validate(salesOrder, product, quantity);
-        this.id = id;
+    protected SalesOrderProduct() {
+    }
+
+    public SalesOrderProduct(
+            SalesOrder salesOrder,
+            Product product,
+            Integer quantity
+    ) {
+        validate(
+                salesOrder,
+                product,
+                quantity
+        );
+
         this.salesOrder = salesOrder;
         this.product = product;
         this.quantity = quantity;
@@ -33,7 +65,10 @@ public class SalesOrderProduct {
     public String toString() {
         return "SalesOrderProduct{" +
                 "id=" + id +
-                ", salesOrder=" + salesOrder +
+                ", salesOrderId=" +
+                (salesOrder != null
+                        ? salesOrder.getId()
+                        : null) +
                 ", product=" + product +
                 ", quantity=" + quantity +
                 '}';

@@ -1,24 +1,51 @@
 package br.com.hulysses.hulysses_one.businesspartner.domain;
 
 import br.com.hulysses.hulysses_one.businesspartner.domain.exception.AddressException;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
 
+@Entity
+@Table(name = "address")
 public class Address {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false)
     private String street;
+
+    @Column(nullable = false)
     private String number;
+
     private String complement;
+
+    @Column(nullable = false)
     private String neighborhood;
+
+    @Column(nullable = false)
     private String city;
+
+    @Column(nullable = false)
     private String state;
+
+    @Column(nullable = false)
     private String country;
+
+    @Column(nullable = false)
     private String postalCode;
 
-    public Address(Long id, String street, String number, String complement, String neighborhood, String city,
-                      String state, String country, String postalCode) {
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "business_partner_id", nullable = false)
+    @JsonIgnore
+    private BusinessPartner businessPartner;
 
+    protected Address() {
+    }
+
+    public Address(String street, String number, String complement, String neighborhood, String city, String state, String country, String postalCode) {
         validate(street, number, neighborhood, city, state, country, postalCode);
-        this.id = id;
+
         this.street = street;
         this.number = number;
         this.complement = complement;
@@ -29,8 +56,11 @@ public class Address {
         this.postalCode = postalCode;
     }
 
-    public void validate(String street, String number, String neighborhood, String city, String state, String country,
-                         String postalCode) {
+    void setBusinessPartner(BusinessPartner businessPartner) {
+        this.businessPartner = businessPartner;
+    }
+
+    public void validate(String street, String number, String neighborhood, String city, String state, String country, String postalCode) {
 
         if (street == null || street.isBlank()) {
             throw new IllegalArgumentException("Street is required");
@@ -64,17 +94,7 @@ public class Address {
 
     @Override
     public String toString() {
-        return "Address{" +
-                "id=" + id +
-                ", street='" + street + '\'' +
-                ", number='" + number + '\'' +
-                ", complement='" + complement + '\'' +
-                ", neighborhood='" + neighborhood + '\'' +
-                ", city='" + city + '\'' +
-                ", state='" + state + '\'' +
-                ", country='" + country + '\'' +
-                ", postalCode='" + postalCode + '\'' +
-                '}';
+        return "Address{" + "id=" + id + ", street='" + street + '\'' + ", number='" + number + '\'' + ", complement='" + complement + '\'' + ", neighborhood='" + neighborhood + '\'' + ", city='" + city + '\'' + ", state='" + state + '\'' + ", country='" + country + '\'' + ", postalCode='" + postalCode + '\'' + '}';
     }
 
     public Long getId() {

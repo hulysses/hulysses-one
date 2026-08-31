@@ -1,138 +1,210 @@
 package br.com.hulysses.hulysses_one.sales.application;
 
+import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartner;
+import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartnerRole;
+import br.com.hulysses.hulysses_one.businesspartner.persistence.BusinessPartnerRepository;
+import br.com.hulysses.hulysses_one.product.domain.Product;
+import br.com.hulysses.hulysses_one.product.persistence.ProductRepository;
 import br.com.hulysses.hulysses_one.sales.domain.SalesOrder;
-import br.com.hulysses.hulysses_one.shared.domain.DuplicateEntityException;
+import br.com.hulysses.hulysses_one.sales.domain.SalesOrderProduct;
+import br.com.hulysses.hulysses_one.sales.persistence.SalesOrderRepository;
+import br.com.hulysses.hulysses_one.sales.presentation.dto.SalesOrderItemRequest;
+import br.com.hulysses.hulysses_one.sales.presentation.dto.SalesOrderRequest;
 import br.com.hulysses.hulysses_one.shared.domain.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.ArrayList;
-import java.util.Comparator;
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
 public class SalesOrderService {
 
-    private final Map<Long, SalesOrder> orders = new HashMap<>();
+    private final SalesOrderRepository repository;
+    private final BusinessPartnerRepository businessPartnerRepository;
+    private final ProductRepository productRepository;
 
-    public SalesOrder create(SalesOrder order) {
-        validateOrder(order);
+    public SalesOrderService(
+            SalesOrderRepository repository,
+            BusinessPartnerRepository businessPartnerRepository,
+            ProductRepository productRepository
+    ) {
+        this.repository = repository;
+        this.businessPartnerRepository =
+                businessPartnerRepository;
+        this.productRepository =
+                productRepository;
+    }
 
-        if (orders.containsKey(order.getId())) {
-            throw new DuplicateEntityException(
-                    "Sales order",
-                    order.getId()
+    public SalesOrder create(
+            SalesOrderRequest request
+    ) {
+
+        BusinessPartner customer =
+                businessPartnerRepository
+                        .findById(request.customerId())
+                        .orElseThrow(() ->
+                                new EntityNotFoundException(
+                                        "Customer",
+                                        request.customerId()
+                                )
+                        );
+
+        if (repository.existsByOrderNumber(
+                request.orderNumber()
+        )) {
+            throw new IllegalArgumentException(
+                    "Order number already registered"
             );
         }
 
-        orders.put(order.getId(), order);
+        if (!customer.getRoles().contains(
+                BusinessPartnerRole.CUSTOMER
+        )) {
+            throw new IllegalArgumentException(
+                    "Business partner is not a customer"
+            );
+        }
 
-        return order;
+        SalesOrder order =
+                new SalesOrder(
+                        request.orderNumber(),
+                        request.orderDate(),
+                        request.status(),
+                        customer
+                );
+
+        for (SalesOrderItemRequest itemRequest :
+                request.items()) {
+
+            Product product =
+                    productRepository
+                            .findById(itemRequest.productId())
+                            .orElseThrow(() ->
+                                    new EntityNotFoundException(
+                                            "Product",
+                                            itemRequest.productId()
+                                    )
+                            );
+
+            SalesOrderProduct item =
+                    new SalesOrderProduct(
+                            order,
+                            product,
+                            itemRequest.quantity()
+                    );
+
+            order.addProduct(item);
+        }
+
+        return repository.save(order);
     }
 
-    public SalesOrder update(SalesOrder order) {
-        validateOrder(order);
-        findById(order.getId());
+    public SalesOrder update(
+            Long id,
+            SalesOrderRequest request
+    ) {
+        SalesOrder order = findById(id);
 
-        orders.put(order.getId(), order);
+        BusinessPartner customer =
+                businessPartnerRepository
+                        .findById(request.customerId())
+                        .orElseThrow(() ->
+                                new EntityNotFoundException(
+                                        "Customer",
+                                        request.customerId()
+                                )
+                        );
 
-        return order;
+        if (repository.existsByOrderNumberAndIdNot(
+                request.orderNumber(),
+                id
+        )) {
+            throw new IllegalArgumentException(
+                    "Order number already registered"
+            );
+        }
+
+        if (!customer.getRoles().contains(
+                BusinessPartnerRole.CUSTOMER
+        )) {
+            throw new IllegalArgumentException(
+                    "Business partner is not a customer"
+            );
+        }
+
+        order.update(
+                request.orderNumber(),
+                request.orderDate(),
+                request.status(),
+                customer
+        );
+
+        order.clearProducts();
+
+        for (SalesOrderItemRequest itemRequest :
+                request.items()) {
+
+            Product product =
+                    productRepository
+                            .findById(itemRequest.productId())
+                            .orElseThrow(() ->
+                                    new EntityNotFoundException(
+                                            "Product",
+                                            itemRequest.productId()
+                                    )
+                            );
+
+            SalesOrderProduct item =
+                    new SalesOrderProduct(
+                            order,
+                            product,
+                            itemRequest.quantity()
+                    );
+
+            order.addProduct(item);
+        }
+
+        return repository.save(order);
+    }
+
+    public SalesOrder findById(Long id) {
+        return repository
+                .findById(id)
+                .orElseThrow(() ->
+                        new EntityNotFoundException(
+                                "Sales order",
+                                id
+                        )
+                );
+    }
+
+    public List<SalesOrder> findAll() {
+        return repository.findAll();
     }
 
     public void delete(Long id) {
         findById(id);
 
-        orders.remove(id);
+        repository.deleteById(id);
     }
 
-    public SalesOrder findById(Long id) {
-        validateId(id);
-
-        SalesOrder order = orders.get(id);
-
-        if (order == null) {
-            throw new EntityNotFoundException(
-                    "Sales order",
-                    id
-            );
-        }
-
-        return order;
+    public List<SalesOrder> findByCustomer(
+            Long customerId
+    ) {
+        return repository.findByCustomerId(
+                customerId
+        );
     }
 
-    public List<SalesOrder> findAll() {
-        return new ArrayList<>(orders.values());
+    public List<SalesOrder> findByStatus(
+            String status
+    ) {
+        return repository.findByStatusIgnoreCase(
+                status
+        );
     }
 
-    public List<SalesOrder> findByCustomer(Long customerId) {
-        validateId(customerId);
-
-        return orders.values()
-                .stream()
-                .filter(order ->
-                        order.getCustomer()
-                                .getId()
-                                .equals(customerId)
-                )
-                .toList();
-    }
-
-    public List<SalesOrder> findByStatus(String status) {
-        if (status == null || status.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Status is required"
-            );
-        }
-
-        return orders.values()
-                .stream()
-                .filter(order ->
-                        order.getStatus()
-                                .equalsIgnoreCase(status.trim())
-                )
-                .toList();
-    }
-
-    public List<SalesOrder> findAllOrderByTotalDescending() {
-        return orders.values()
-                .stream()
-                .sorted(
-                        Comparator.comparing(
-                                order ->
-                                        order.getTotalAmount() == null
-                                                ? 0.0
-                                                : order.getTotalAmount(),
-                                Comparator.reverseOrder()
-                        )
-                )
-                .toList();
-    }
-
-    public double calculateTotalSales() {
-        return orders.values()
-                .stream()
-                .map(SalesOrder::getTotalAmount)
-                .filter(total -> total != null)
-                .mapToDouble(Double::doubleValue)
-                .sum();
-    }
-
-    private void validateOrder(SalesOrder order) {
-        if (order == null) {
-            throw new IllegalArgumentException(
-                    "Sales order is required"
-            );
-        }
-
-        validateId(order.getId());
-    }
-
-    private void validateId(Long id) {
-        if (id == null || id <= 0) {
-            throw new IllegalArgumentException(
-                    "Id must be greater than zero"
-            );
-        }
+    public BigDecimal calculateTotalSales() {
+        return repository.calculateTotalSales();
     }
 }

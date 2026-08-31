@@ -2,6 +2,8 @@ package br.com.hulysses.hulysses_one.businesspartner.presentation;
 
 import br.com.hulysses.hulysses_one.businesspartner.application.BusinessPartnerService;
 import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartner;
+import br.com.hulysses.hulysses_one.businesspartner.presentation.dto.BusinessPartnerRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,10 +21,12 @@ public class BusinessPartnerController {
     }
 
     @PostMapping
-    public ResponseEntity<BusinessPartner> create(@RequestBody BusinessPartner partner) {
-
-        BusinessPartner created = service.create(partner);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<BusinessPartner> create(
+            @Valid @RequestBody BusinessPartnerRequest request
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(service.create(request));
     }
 
     @GetMapping
@@ -64,13 +68,14 @@ public class BusinessPartnerController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<BusinessPartner> update(@PathVariable Long id, @RequestBody BusinessPartner partner) {
+    public ResponseEntity<BusinessPartner> update(
+            @PathVariable Long id,
+            @Valid @RequestBody BusinessPartnerRequest request
+    ) {
 
-        if (!id.equals(partner.getId())) {
-            throw new IllegalArgumentException("Path id must match body id");
-        }
-
-        return ResponseEntity.ok(service.update(partner));
+        return ResponseEntity.ok(
+                service.update(id, request)
+        );
     }
 
     @DeleteMapping("/{id}")

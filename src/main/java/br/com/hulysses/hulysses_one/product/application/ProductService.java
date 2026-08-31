@@ -1,7 +1,11 @@
 package br.com.hulysses.hulysses_one.product.application;
 
+import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartner;
+import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartnerRole;
+import br.com.hulysses.hulysses_one.businesspartner.persistence.BusinessPartnerRepository;
 import br.com.hulysses.hulysses_one.product.domain.Product;
-import br.com.hulysses.hulysses_one.shared.domain.DuplicateEntityException;
+import br.com.hulysses.hulysses_one.product.persistence.ProductRepository;
+import br.com.hulysses.hulysses_one.product.presentation.dto.ProductRequest;
 import br.com.hulysses.hulysses_one.shared.domain.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -10,132 +14,118 @@ import java.util.*;
 @Service
 public class ProductService {
 
-    private final Map<Long, Product> products = new HashMap<>();
+    private final ProductRepository repository;
+    private final BusinessPartnerRepository businessPartnerRepository;
 
-    public Product create(Product product) {
-        validateProduct(product);
+    public ProductService(
+            ProductRepository repository,
+            BusinessPartnerRepository businessPartnerRepository
+    ) {
+        this.repository = repository;
+        this.businessPartnerRepository = businessPartnerRepository;
+    }
 
-        if (products.containsKey(product.getId())) {
-            throw new DuplicateEntityException(
-                    "Product",
-                    product.getId()
+    public Product create(
+            ProductRequest request
+    ) {
+
+        BusinessPartner supplier =
+                businessPartnerRepository
+                        .findById(request.supplierId())
+                        .orElseThrow(() ->
+                                new EntityNotFoundException(
+                                        "Supplier",
+                                        request.supplierId()
+                                )
+                        );
+
+        if (!supplier.getRoles().contains(
+                BusinessPartnerRole.SUPPLIER
+        )) {
+            throw new IllegalArgumentException(
+                    "Business partner is not a supplier"
             );
         }
 
-        products.put(product.getId(), product);
+        Product product = new Product(
+                request.name(),
+                request.description(),
+                request.price(),
+                supplier
+        );
 
-        return product;
+        return repository.save(product);
     }
 
-    public Product update(Product product) {
-        validateProduct(product);
+    public Product update(
+            Long id,
+            ProductRequest request
+    ) {
 
-        findById(product.getId());
+        Product product = findById(id);
 
-        products.put(product.getId(), product);
+        BusinessPartner supplier =
+                businessPartnerRepository
+                        .findById(request.supplierId())
+                        .orElseThrow(() ->
+                                new EntityNotFoundException(
+                                        "Supplier",
+                                        request.supplierId()
+                                )
+                        );
 
-        return product;
+        if (!supplier.getRoles().contains(
+                BusinessPartnerRole.SUPPLIER
+        )) {
+            throw new IllegalArgumentException(
+                    "Business partner is not a supplier"
+            );
+        }
+
+        product.update(
+                request.name(),
+                request.description(),
+                request.price(),
+                supplier,
+                request.active() == null
+                        ? product.getActive()
+                        : request.active()
+        );
+
+        return repository.save(product);
+    }
+
+    public Product findById(Long id) {
+        return repository
+                .findById(id)
+                .orElseThrow(() ->
+                        new EntityNotFoundException(
+                                "Product",
+                                id
+                        )
+                );
+    }
+
+    public List<Product> findAll() {
+        return repository.findAll();
     }
 
     public void delete(Long id) {
         findById(id);
-
-        products.remove(id);
-    }
-
-    public Product findById(Long id) {
-        validateId(id);
-
-        Product product = products.get(id);
-
-        if (product == null) {
-            throw new EntityNotFoundException(
-                    "Product",
-                    id
-            );
-        }
-
-        return product;
-    }
-
-    public List<Product> findAll() {
-        return new ArrayList<>(products.values());
+        repository.deleteById(id);
     }
 
     public List<Product> findActive() {
-
-        return products.values()
-                .stream()
-                .filter(Product::getActive)
-                .toList();
+        return repository.findByIsActiveTrue();
     }
 
-    public Optional<Product> findByName(String name) {
-
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Name is required"
-            );
-        }
-
-        return products.values()
-                .stream()
-                .filter(product ->
-                        product.getName()
-                                .equalsIgnoreCase(name.trim())
-                )
-                .findFirst();
+    public Optional<Product> findByName(
+            String name
+    ) {
+        return repository.findByNameIgnoreCase(name);
     }
 
     public List<Product> findAllOrderByPrice() {
-
-        return products.values()
-                .stream()
-                .sorted(
-                        Comparator.comparing(Product::getPrice)
-                )
-                .toList();
-    }
-
-    public List<Product> findAllOrderByName() {
-
-        return products.values()
-                .stream()
-                .sorted(
-                        Comparator.comparing(
-                                Product::getName,
-                                String.CASE_INSENSITIVE_ORDER
-                        )
-                )
-                .toList();
-    }
-
-    public List<String> findProductNames() {
-
-        return products.values()
-                .stream()
-                .map(Product::getName)
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .toList();
-    }
-
-    private void validateProduct(Product product) {
-
-        if (product == null) {
-            throw new IllegalArgumentException(
-                    "Product is required"
-            );
-        }
-
-        validateId(product.getId());
-    }
-
-    private void validateId(Long id) {
-
-        if (id == null || id <= 0) {
-            throw new IllegalArgumentException(
-                    "Id must be greater than zero"
-            );
-        }
+        return repository.findAllByOrderByPriceAsc();
     }
 }

@@ -1,153 +1,161 @@
 package br.com.hulysses.hulysses_one.businesspartner.application;
 
+import br.com.hulysses.hulysses_one.businesspartner.domain.Address;
 import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartner;
 import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartnerRole;
-import br.com.hulysses.hulysses_one.shared.domain.DuplicateEntityException;
+import br.com.hulysses.hulysses_one.businesspartner.persistence.BusinessPartnerRepository;
+import br.com.hulysses.hulysses_one.businesspartner.presentation.dto.BusinessPartnerRequest;
 import br.com.hulysses.hulysses_one.shared.domain.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 @Service
 public class BusinessPartnerService {
 
-    private final Map<Long, BusinessPartner> partners = new HashMap<>();
+    private final BusinessPartnerRepository repository;
 
-    public BusinessPartner create(BusinessPartner partner) {
-        validatePartner(partner);
+    public BusinessPartnerService(
+            BusinessPartnerRepository repository
+    ) {
+        this.repository = repository;
+    }
 
-        if (partners.containsKey(partner.getId())) {
-            throw new DuplicateEntityException(
-                    "Business partner",
-                    partner.getId()
+    public BusinessPartner create(
+            BusinessPartnerRequest request
+    ) {
+
+        if (repository.existsByDocument(
+                request.document()
+        )) {
+            throw new IllegalArgumentException(
+                    "Document already registered"
             );
         }
 
-        partners.put(partner.getId(), partner);
+        BusinessPartner partner =
+                new BusinessPartner(
+                        request.name(),
+                        request.document(),
+                        request.email(),
+                        request.phone(),
+                        request.type()
+                );
 
-        return partner;
+        if (request.addresses() != null) {
+            request.addresses().forEach(addressRequest -> {
+                Address address = new Address(
+                        addressRequest.street(),
+                        addressRequest.number(),
+                        addressRequest.complement(),
+                        addressRequest.neighborhood(),
+                        addressRequest.city(),
+                        addressRequest.state(),
+                        addressRequest.country(),
+                        addressRequest.postalCode()
+                );
+
+                partner.addAddress(address);
+            });
+        }
+
+        request.roles()
+                .forEach(partner::addRole);
+
+        return repository.save(partner);
     }
 
-    public BusinessPartner update(BusinessPartner partner) {
-        validatePartner(partner);
-        findById(partner.getId());
-        partners.put(partner.getId(), partner);
+    public BusinessPartner update(
+            Long id,
+            BusinessPartnerRequest request
+    ) {
 
-        return partner;
+        BusinessPartner partner = findById(id);
+
+        if (repository.existsByDocumentAndIdNot(
+                request.document(),
+                id
+        )) {
+            throw new IllegalArgumentException(
+                    "Document already registered"
+            );
+        }
+
+        partner.update(
+                request.name(),
+                request.document(),
+                request.email(),
+                request.phone(),
+                request.type(),
+                request.active() == null
+                        ? partner.getActive()
+                        : request.active()
+        );
+
+        partner.clearAddresses();
+
+        if (request.addresses() != null) {
+            request.addresses().forEach(addressRequest -> {
+                Address address = new Address(
+                        addressRequest.street(),
+                        addressRequest.number(),
+                        addressRequest.complement(),
+                        addressRequest.neighborhood(),
+                        addressRequest.city(),
+                        addressRequest.state(),
+                        addressRequest.country(),
+                        addressRequest.postalCode()
+                );
+
+                partner.addAddress(address);
+            });
+        }
+
+        partner.clearRoles();
+
+        request.roles()
+                .forEach(partner::addRole);
+
+        return repository.save(partner);
     }
 
     public void delete(Long id) {
         findById(id);
-        partners.remove(id);
+
+        repository.deleteById(id);
     }
 
     public BusinessPartner findById(Long id) {
-        validateId(id);
-        BusinessPartner partner = partners.get(id);
-
-        if (partner == null) {
-            throw new EntityNotFoundException(
-                    "Business partner",
-                    id
-            );
-        }
-
-        return partner;
+        return repository
+                .findById(id)
+                .orElseThrow(() ->
+                        new EntityNotFoundException(
+                                "Business partner",
+                                id
+                        )
+                );
     }
 
     public List<BusinessPartner> findAll() {
-        return new ArrayList<>(partners.values());
-    }
-
-    public List<BusinessPartner> findByRole(
-            BusinessPartnerRole role
-    ) {
-
-        if (role == null) {
-            throw new IllegalArgumentException("Role is required");
-        }
-
-        return partners.values()
-                .stream()
-                .filter(partner ->
-                        partner.getRoles().contains(role)
-                )
-                .toList();
+        return repository.findAll();
     }
 
     public List<BusinessPartner> findCustomers() {
-        return findByRole(BusinessPartnerRole.CUSTOMER);
+        return repository.findByRolesContaining(
+                BusinessPartnerRole.CUSTOMER
+        );
     }
 
     public List<BusinessPartner> findSuppliers() {
-        return findByRole(BusinessPartnerRole.SUPPLIER);
+        return repository.findByRolesContaining(
+                BusinessPartnerRole.SUPPLIER
+        );
     }
 
-    public List<BusinessPartner> findByName(String name) {
-
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Name is required"
-            );
-        }
-
-        String search = name
-                .trim()
-                .toLowerCase();
-
-        return partners.values()
-                .stream()
-                .filter(partner ->
-                        partner.getName()
-                                .toLowerCase()
-                                .contains(search)
-                )
-                .toList();
-    }
-
-    public List<BusinessPartner> findAllOrderByName() {
-
-        return partners.values()
-                .stream()
-                .sorted(
-                        Comparator.comparing(
-                                BusinessPartner::getName,
-                                String.CASE_INSENSITIVE_ORDER
-                        )
-                )
-                .toList();
-    }
-
-    public List<String> findAllNames() {
-
-        return partners.values()
-                .stream()
-                .map(BusinessPartner::getName)
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .toList();
-    }
-
-    private void validatePartner(BusinessPartner partner) {
-
-        if (partner == null) {
-            throw new IllegalArgumentException(
-                    "Business partner is required"
-            );
-        }
-
-        validateId(partner.getId());
-    }
-
-    private void validateId(Long id) {
-
-        if (id == null || id <= 0) {
-            throw new IllegalArgumentException(
-                    "Id must be greater than zero"
-            );
-        }
+    public List<BusinessPartner> findByName(
+            String name
+    ) {
+        return repository
+                .findByNameContainingIgnoreCase(name);
     }
 }

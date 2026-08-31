@@ -2,6 +2,8 @@ package br.com.hulysses.hulysses_one.product.presentation;
 
 import br.com.hulysses.hulysses_one.product.application.ProductService;
 import br.com.hulysses.hulysses_one.product.domain.Product;
+import br.com.hulysses.hulysses_one.product.presentation.dto.ProductRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,9 +21,11 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<Product> create(@RequestBody Product product) {
+    public ResponseEntity<Product> create(
+            @Valid @RequestBody ProductRequest request
+    ) {
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.create(product));
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request));
     }
 
     @GetMapping
@@ -37,13 +41,13 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Product> update(@PathVariable Long id, @RequestBody Product product) {
-
-        if (!id.equals(product.getId())) {
-            throw new IllegalArgumentException("Path id must match body id");
-        }
-
-        return ResponseEntity.ok(service.update(product));
+    public ResponseEntity<Product> update(
+            @PathVariable Long id,
+            @Valid @RequestBody ProductRequest request
+    ) {
+        return ResponseEntity.ok(
+                service.update(id, request)
+        );
     }
 
     @DeleteMapping("/{id}")

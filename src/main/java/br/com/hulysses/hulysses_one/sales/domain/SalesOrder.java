@@ -2,24 +2,71 @@ package br.com.hulysses.hulysses_one.sales.domain;
 
 import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartner;
 import br.com.hulysses.hulysses_one.product.domain.exception.ProductException;
+import jakarta.persistence.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+@Entity
+@Table(name = "sales_order")
 public class SalesOrder {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String orderNumber;
-    private LocalDateTime orderDate;
-    private String status;
-    private BusinessPartner customer;
-    private final List<SalesOrderProduct> products = new ArrayList<>();
-    private Double totalAmount;
 
-    public SalesOrder(Long id, String orderNumber, LocalDateTime orderDate, String status, BusinessPartner customer) {
-        validate(orderNumber, orderDate, status, customer);
-        this.id = id;
+    @Column(
+            nullable = false,
+            unique = true
+    )
+    private String orderNumber;
+
+    @Column(nullable = false)
+    private LocalDateTime orderDate;
+
+    @Column(nullable = false)
+    private String status;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "customer_id",
+            nullable = false
+    )
+    private BusinessPartner customer;
+
+    @OneToMany(
+            mappedBy = "salesOrder",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<SalesOrderProduct> products =
+            new ArrayList<>();
+
+    @Column(
+            nullable = false,
+            precision = 15,
+            scale = 2
+    )
+    private BigDecimal totalAmount = BigDecimal.ZERO;
+
+    protected SalesOrder() {
+    }
+
+    public SalesOrder(
+            String orderNumber,
+            LocalDateTime orderDate,
+            String status,
+            BusinessPartner customer
+    ) {
+        validate(
+                orderNumber,
+                orderDate,
+                status,
+                customer
+        );
+
         this.orderNumber = orderNumber;
         this.orderDate = orderDate;
         this.status = status;
@@ -41,6 +88,30 @@ public class SalesOrder {
         }
     }
 
+    public void update(
+            String orderNumber,
+            LocalDateTime orderDate,
+            String status,
+            BusinessPartner customer
+    ) {
+        validate(
+                orderNumber,
+                orderDate,
+                status,
+                customer
+        );
+
+        this.orderNumber = orderNumber;
+        this.orderDate = orderDate;
+        this.status = status;
+        this.customer = customer;
+    }
+
+    public void clearProducts() {
+        products.clear();
+        calculateTotalAmount();
+    }
+
     public void addProduct(SalesOrderProduct product) {
         if (product == null) {
             throw new IllegalArgumentException("Product is required");
@@ -55,8 +126,10 @@ public class SalesOrder {
 
     private void calculateTotalAmount() {
         this.totalAmount = products.stream()
-                .mapToDouble(p -> p.getProduct().getPrice() * p.getQuantity())
-                .sum();
+                .map(p -> p.getProduct()
+                        .getPrice()
+                        .multiply(BigDecimal.valueOf(p.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     @Override
@@ -96,7 +169,7 @@ public class SalesOrder {
         return products;
     }
 
-    public Double getTotalAmount() {
+    public BigDecimal getTotalAmount() {
         return totalAmount;
     }
 }
