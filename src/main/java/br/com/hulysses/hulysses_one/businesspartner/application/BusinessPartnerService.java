@@ -4,6 +4,7 @@ import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartner;
 import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartnerRole;
 import br.com.hulysses.hulysses_one.shared.domain.DuplicateEntityException;
 import br.com.hulysses.hulysses_one.shared.domain.EntityNotFoundException;
+import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+@Service
 public class BusinessPartnerService {
 
     private final Map<Long, BusinessPartner> partners = new HashMap<>();

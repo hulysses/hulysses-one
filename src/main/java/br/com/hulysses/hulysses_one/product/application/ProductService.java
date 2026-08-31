@@ -3,9 +3,11 @@ package br.com.hulysses.hulysses_one.product.application;
 import br.com.hulysses.hulysses_one.product.domain.Product;
 import br.com.hulysses.hulysses_one.shared.domain.DuplicateEntityException;
 import br.com.hulysses.hulysses_one.shared.domain.EntityNotFoundException;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
 
+@Service
 public class ProductService {
 
     private final Map<Long, Product> products = new HashMap<>();

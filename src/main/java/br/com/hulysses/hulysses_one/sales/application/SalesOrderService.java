@@ -3,6 +3,7 @@ package br.com.hulysses.hulysses_one.sales.application;
 import br.com.hulysses.hulysses_one.sales.domain.SalesOrder;
 import br.com.hulysses.hulysses_one.shared.domain.DuplicateEntityException;
 import br.com.hulysses.hulysses_one.shared.domain.EntityNotFoundException;
+import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+@Service
 public class SalesOrderService {
 
     private final Map<Long, SalesOrder> orders = new HashMap<>();

@@ -1,6 +1,7 @@
 package br.com.hulysses.hulysses_one.businesspartner.domain;
 
 import br.com.hulysses.hulysses_one.businesspartner.domain.exception.BusinessPartnerDocumentException;
+import com.fasterxml.jackson.annotation.JsonSetter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,7 +71,10 @@ public class BusinessPartner {
         if (role == null) {
             throw new IllegalArgumentException("Role is required");
         }
-        this.roles.add(role);
+
+        if (!roles.contains(role)) {
+            roles.add(role);
+        }
     }
 
     @Override
@@ -121,5 +125,25 @@ public class BusinessPartner {
 
     public List<BusinessPartnerRole> getRoles() {
         return roles;
+    }
+
+    @JsonSetter("roles")
+    public void setRoles(List<BusinessPartnerRole> roles) {
+
+        this.roles.clear();
+
+        if (roles != null) {
+            roles.forEach(this::addRole);
+        }
+    }
+
+    @JsonSetter("addresses")
+    public void setAddresses(List<Address> addresses) {
+
+        this.addresses.clear();
+
+        if (addresses != null) {
+            addresses.forEach(this::addAddress);
+        }
     }
 }
