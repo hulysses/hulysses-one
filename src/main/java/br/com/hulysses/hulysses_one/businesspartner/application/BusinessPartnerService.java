@@ -5,12 +5,17 @@ import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartner;
 import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartnerRole;
 import br.com.hulysses.hulysses_one.businesspartner.persistence.BusinessPartnerRepository;
 import br.com.hulysses.hulysses_one.businesspartner.presentation.dto.BusinessPartnerRequest;
-import br.com.hulysses.hulysses_one.shared.domain.EntityNotFoundException;
+import br.com.hulysses.hulysses_one.businesspartner.presentation.dto.BusinessPartnerResponse;
+import br.com.hulysses.hulysses_one.shared.exception.DomainException;
+import br.com.hulysses.hulysses_one.shared.exception.DuplicateEntityException;
+import br.com.hulysses.hulysses_one.shared.exception.EntityNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class BusinessPartnerService {
 
     private final BusinessPartnerRepository repository;
@@ -21,14 +26,15 @@ public class BusinessPartnerService {
         this.repository = repository;
     }
 
-    public BusinessPartner create(
+    @Transactional
+    public BusinessPartnerResponse create(
             BusinessPartnerRequest request
     ) {
 
         if (repository.existsByDocument(
                 request.document()
         )) {
-            throw new IllegalArgumentException(
+            throw new DuplicateEntityException(
                     "Document already registered"
             );
         }
@@ -62,10 +68,11 @@ public class BusinessPartnerService {
         request.roles()
                 .forEach(partner::addRole);
 
-        return repository.save(partner);
+        return BusinessPartnerResponse.from(repository.save(partner));
     }
 
-    public BusinessPartner update(
+    @Transactional
+    public BusinessPartnerResponse update(
             Long id,
             BusinessPartnerRequest request
     ) {
@@ -76,7 +83,7 @@ public class BusinessPartnerService {
                 request.document(),
                 id
         )) {
-            throw new IllegalArgumentException(
+            throw new DuplicateEntityException(
                     "Document already registered"
             );
         }
@@ -116,9 +123,10 @@ public class BusinessPartnerService {
         request.roles()
                 .forEach(partner::addRole);
 
-        return repository.save(partner);
+        return BusinessPartnerResponse.from(repository.save(partner));
     }
 
+    @Transactional
     public void delete(Long id) {
         findById(id);
 
@@ -136,26 +144,47 @@ public class BusinessPartnerService {
                 );
     }
 
-    public List<BusinessPartner> findAll() {
-        return repository.findAll();
+    public BusinessPartnerResponse getById(Long id) {
+        return BusinessPartnerResponse.from(findById(id));
     }
 
-    public List<BusinessPartner> findCustomers() {
+    public BusinessPartner findSupplierById(Long id) {
+        return findByRole(id, BusinessPartnerRole.SUPPLIER, "Supplier");
+    }
+
+    public BusinessPartner findCustomerById(Long id) {
+        return findByRole(id, BusinessPartnerRole.CUSTOMER, "Customer");
+    }
+
+    private BusinessPartner findByRole(Long id, BusinessPartnerRole role, String resource) {
+        BusinessPartner partner = repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException(resource, id));
+        if (!partner.getRoles().contains(role)) {
+            throw new DomainException("Business partner is not a " + resource.toLowerCase(java.util.Locale.ROOT));
+        }
+        return partner;
+    }
+
+    public List<BusinessPartnerResponse> findAll() {
+        return repository.findAll().stream().map(BusinessPartnerResponse::from).toList();
+    }
+
+    public List<BusinessPartnerResponse> findCustomers() {
         return repository.findByRolesContaining(
                 BusinessPartnerRole.CUSTOMER
-        );
+        ).stream().map(BusinessPartnerResponse::from).toList();
     }
 
-    public List<BusinessPartner> findSuppliers() {
+    public List<BusinessPartnerResponse> findSuppliers() {
         return repository.findByRolesContaining(
                 BusinessPartnerRole.SUPPLIER
-        );
+        ).stream().map(BusinessPartnerResponse::from).toList();
     }
 
-    public List<BusinessPartner> findByName(
+    public List<BusinessPartnerResponse> findByName(
             String name
     ) {
         return repository
-                .findByNameContainingIgnoreCase(name);
+                .findByNameContainingIgnoreCase(name).stream().map(BusinessPartnerResponse::from).toList();
     }
 }

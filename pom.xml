@@ -11,8 +11,8 @@
     <groupId>br.com.hulysses</groupId>
     <artifactId>hulysses-one</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name/>
-    <description/>
+    <name>Hulysses One</name>
+    <description>Monólito modular para parceiros de negócio, produtos e vendas</description>
     <url/>
     <licenses>
         <license/>
@@ -88,7 +88,12 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.8.9</version>
+            <version>3.1.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

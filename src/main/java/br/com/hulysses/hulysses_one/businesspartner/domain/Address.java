@@ -3,6 +3,7 @@ package br.com.hulysses.hulysses_one.businesspartner.domain;
 import br.com.hulysses.hulysses_one.businesspartner.domain.exception.AddressException;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import br.com.hulysses.hulysses_one.shared.exception.DomainException;
 
 @Entity
 @Table(name = "address")
@@ -63,29 +64,29 @@ public class Address {
     public void validate(String street, String number, String neighborhood, String city, String state, String country, String postalCode) {
 
         if (street == null || street.isBlank()) {
-            throw new IllegalArgumentException("Street is required");
+            throw new DomainException("Street is required");
         }
         if (number == null || number.isBlank()) {
-            throw new IllegalArgumentException("Number is required");
+            throw new DomainException("Number is required");
         }
         if (neighborhood == null || neighborhood.isBlank()) {
-            throw new IllegalArgumentException("Neighborhood is required");
+            throw new DomainException("Neighborhood is required");
         }
         if (city == null || city.isBlank()) {
-            throw new IllegalArgumentException("City is required");
+            throw new DomainException("City is required");
         }
         if (state == null || state.isBlank()) {
-            throw new IllegalArgumentException("State is required");
+            throw new DomainException("State is required");
         }
         if (country == null || country.isBlank()) {
-            throw new IllegalArgumentException("Country is required");
+            throw new DomainException("Country is required");
         }
         validatePostalCode(postalCode);
     }
 
     public void validatePostalCode(String postalCode) {
         if (postalCode == null || postalCode.isBlank()) {
-            throw new IllegalArgumentException("Postal code is required");
+            throw new DomainException("Postal code is required");
         }
         if (!postalCode.matches("\\d{8}")) {
             throw new AddressException("Invalid postal code format");

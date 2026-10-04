@@ -2,6 +2,7 @@ package br.com.hulysses.hulysses_one.product.domain;
 
 import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartner;
 import jakarta.persistence.*;
+import br.com.hulysses.hulysses_one.shared.exception.DomainException;
 
 import java.math.BigDecimal;
 
@@ -81,16 +82,16 @@ public class Product {
 
     public void validate(String name, String description, BigDecimal price, BusinessPartner supplier) {
         if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("Name is required");
+            throw new DomainException("Name is required");
         }
         if (description == null || description.isBlank()) {
-            throw new IllegalArgumentException("Description is required");
+            throw new DomainException("Description is required");
         }
         if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Price must be greater than zero");
+            throw new DomainException("Price must be greater than zero");
         }
         if (supplier == null) {
-            throw new IllegalArgumentException("Supplier is required");
+            throw new DomainException("Supplier is required");
         }
     }
 

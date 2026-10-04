@@ -2,6 +2,7 @@ package br.com.hulysses.hulysses_one.businesspartner.domain;
 
 import br.com.hulysses.hulysses_one.businesspartner.domain.exception.BusinessPartnerDocumentException;
 import jakarta.persistence.*;
+import br.com.hulysses.hulysses_one.shared.exception.DomainException;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -96,21 +97,21 @@ public class BusinessPartner {
             String phone
     ) {
         if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("Name is required");
+            throw new DomainException("Name is required");
         }
 
         if (type == null) {
-            throw new IllegalArgumentException("Type is required");
+            throw new DomainException("Type is required");
         }
 
         validateDocument(document, type);
 
         if (email == null || email.isBlank()) {
-            throw new IllegalArgumentException("Email is required");
+            throw new DomainException("Email is required");
         }
 
         if (phone == null || phone.isBlank()) {
-            throw new IllegalArgumentException("Phone is required");
+            throw new DomainException("Phone is required");
         }
     }
 
@@ -119,7 +120,7 @@ public class BusinessPartner {
             BusinessPartnerType type
     ) {
         if (document == null || document.isBlank()) {
-            throw new IllegalArgumentException(
+            throw new DomainException(
                     "Document is required"
             );
         }
@@ -143,7 +144,7 @@ public class BusinessPartner {
 
     public void addAddress(Address address) {
         if (address == null) {
-            throw new IllegalArgumentException(
+            throw new DomainException(
                     "Address is required"
             );
         }
@@ -158,7 +159,7 @@ public class BusinessPartner {
 
     public void addRole(BusinessPartnerRole role) {
         if (role == null) {
-            throw new IllegalArgumentException(
+            throw new DomainException(
                     "Role is required"
             );
         }

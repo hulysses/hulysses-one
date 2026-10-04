@@ -1,9 +1,14 @@
 package br.com.hulysses.hulysses_one.sales.presentation;
 
 import br.com.hulysses.hulysses_one.sales.application.SalesOrderService;
-import br.com.hulysses.hulysses_one.sales.domain.SalesOrder;
+import br.com.hulysses.hulysses_one.sales.presentation.dto.SalesOrderResponse;
 import br.com.hulysses.hulysses_one.sales.presentation.dto.SalesOrderRequest;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.media.Content;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,6 +17,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
+@Tag(name = "Pedidos de venda", description = "Pedidos, itens, consultas por cliente e status e total de vendas")
 @RequestMapping("/sales-orders")
 public class SalesOrderController {
 
@@ -21,8 +27,10 @@ public class SalesOrderController {
         this.service = service;
     }
 
+    @Operation(summary = "Cadastrar registro")
+    @ApiResponse(responseCode = "201", description = "Registro criado")
     @PostMapping
-    public ResponseEntity<SalesOrder> create(
+    public ResponseEntity<SalesOrderResponse> create(
             @Valid @RequestBody SalesOrderRequest request
     ) {
         return ResponseEntity
@@ -31,19 +39,20 @@ public class SalesOrderController {
     }
 
     @GetMapping
-    public ResponseEntity<List<SalesOrder>> findAll() {
+    public ResponseEntity<List<SalesOrderResponse>> findAll() {
 
         return ResponseEntity.ok(service.findAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<SalesOrder> findById(@PathVariable Long id) {
+    public ResponseEntity<SalesOrderResponse> findById(@PathVariable Long id) {
 
-        return ResponseEntity.ok(service.findById(id));
+        return ResponseEntity.ok(service.getById(id));
     }
 
+    @Operation(summary = "Atualizar registro", description = "Substitui os campos e coleções informados; retorna 404 quando o ID não existe.")
     @PutMapping("/{id}")
-    public ResponseEntity<SalesOrder> update(
+    public ResponseEntity<SalesOrderResponse> update(
             @PathVariable Long id,
             @Valid @RequestBody SalesOrderRequest request
     ) {
@@ -52,6 +61,8 @@ public class SalesOrderController {
         );
     }
 
+    @Operation(summary = "Excluir registro", description = "Retorna 404 para ID inexistente e 409 se houver referências que impeçam a exclusão.")
+    @ApiResponse(responseCode = "204", description = "Registro excluído", content = @Content)
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
 
@@ -61,18 +72,23 @@ public class SalesOrderController {
     }
 
     @GetMapping("/customer/{customerId}")
-    public ResponseEntity<List<SalesOrder>> findByCustomer(@PathVariable Long customerId) {
+    @Operation(summary = "Listar pedidos de um cliente", description = "Retorna lista vazia quando não há pedidos para o ID informado.")
+    public ResponseEntity<List<SalesOrderResponse>> findByCustomer(
+            @Parameter(description = "ID do cliente") @PathVariable Long customerId) {
 
         return ResponseEntity.ok(service.findByCustomer(customerId));
     }
 
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<SalesOrder>> findByStatus(@PathVariable String status) {
+    @Operation(summary = "Buscar pedidos por status", description = "Comparação sem distinção entre maiúsculas e minúsculas.")
+    public ResponseEntity<List<SalesOrderResponse>> findByStatus(
+            @Parameter(description = "Status do pedido", example = "OPEN") @PathVariable String status) {
 
         return ResponseEntity.ok(service.findByStatus(status));
     }
 
     @GetMapping("/total")
+    @Operation(summary = "Consultar o total de vendas", description = "Soma os totais persistidos de todos os pedidos, incluindo todos os status; retorna zero sem pedidos.")
     public ResponseEntity<BigDecimal> totalSales() {
         return ResponseEntity.ok(
                 service.calculateTotalSales()

@@ -1,8 +1,8 @@
 package br.com.hulysses.hulysses_one.sales.domain;
 
 import br.com.hulysses.hulysses_one.businesspartner.domain.BusinessPartner;
-import br.com.hulysses.hulysses_one.product.domain.exception.ProductException;
 import jakarta.persistence.*;
+import br.com.hulysses.hulysses_one.shared.exception.DomainException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -75,16 +75,16 @@ public class SalesOrder {
 
     private void validate(String orderNumber, LocalDateTime orderDate, String status, BusinessPartner customer) {
         if (orderNumber == null || orderNumber.isBlank()) {
-            throw new IllegalArgumentException("Order number is required");
+            throw new DomainException("Order number is required");
         }
         if (orderDate == null) {
-            throw new IllegalArgumentException("Order date is required");
+            throw new DomainException("Order date is required");
         }
         if (status == null || status.isBlank()) {
-            throw new IllegalArgumentException("Status is required");
+            throw new DomainException("Status is required");
         }
         if (customer == null) {
-            throw new IllegalArgumentException("Customer is required");
+            throw new DomainException("Customer is required");
         }
     }
 
@@ -114,12 +114,8 @@ public class SalesOrder {
 
     public void addProduct(SalesOrderProduct product) {
         if (product == null) {
-            throw new IllegalArgumentException("Product is required");
+            throw new DomainException("Product is required");
         }
-        if (!product.getProduct().getActive()) {
-            throw new ProductException("Product is inactive and cannot be added to the order");
-        }
-
         this.products.add(product);
         calculateTotalAmount();
     }

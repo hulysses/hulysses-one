@@ -3,6 +3,7 @@ package br.com.hulysses.hulysses_one.sales.domain;
 import br.com.hulysses.hulysses_one.product.domain.Product;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import br.com.hulysses.hulysses_one.shared.exception.DomainException;
 
 @Entity
 @Table(name = "sales_order_product")
@@ -51,13 +52,13 @@ public class SalesOrderProduct {
 
     private void validate(SalesOrder salesOrder, Product product, Integer quantity) {
         if (salesOrder == null) {
-            throw new IllegalArgumentException("Sales order is required");
+            throw new DomainException("Sales order is required");
         }
         if (product == null) {
-            throw new IllegalArgumentException("Product is required");
+            throw new DomainException("Product is required");
         }
         if (quantity == null || quantity <= 0) {
-            throw new IllegalArgumentException("Quantity must be greater than zero");
+            throw new DomainException("Quantity must be greater than zero");
         }
     }
 
