@@ -197,7 +197,7 @@ permaneceriam papéis até existirem casos de uso que justifiquem outra divisão
 </details>
 
 <details>
-<summary><strong>Etapa 1 — Organização do monólito modular</strong></summary>
+<summary><strong>Etapa 2 — Primeiro serviço independente</strong></summary>
 
 <br>
 
