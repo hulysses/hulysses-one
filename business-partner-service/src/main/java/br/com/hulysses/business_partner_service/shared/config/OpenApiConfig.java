@@ -12,7 +12,7 @@ public class OpenApiConfig {
     public OpenAPI hulyssesOpenAPI() {
         return new OpenAPI().info(new Info()
                 .title("Business Partner Service API")
-                .version("etapa-2")
+                .version("etapa-3")
                 .description("Cadastro independente de pessoas e empresas, contatos, endereços e elegibilidade por papel."));
     }
 }

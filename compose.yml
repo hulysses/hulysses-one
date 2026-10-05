@@ -1,0 +1,125 @@
+services:
+  config-server:
+    image: hulysses-one/config-server:etapa-3
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    environment:
+      CONFIG_SERVER_PORT: ${CONFIG_SERVER_PORT:-8888}
+      CONFIG_SEARCH_LOCATIONS: file:/config-repo/
+    volumes:
+      - ./config-server/src/main/resources/config-repo:/config-repo:ro
+    ports:
+      - "127.0.0.1:${CONFIG_SERVER_HOST_PORT:-8888}:${CONFIG_SERVER_PORT:-8888}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:$$CONFIG_SERVER_PORT/actuator/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [hulysses-network]
+
+  hulysses-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: ${DB_NAME:-hulysses}
+      POSTGRES_USER: ${DB_USERNAME:-hulysses}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes:
+      - hulysses-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [hulysses-network]
+
+  business-partner-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: ${PARTNER_DB_NAME:-business_partner}
+      POSTGRES_USER: ${PARTNER_DB_USERNAME:-business_partner}
+      POSTGRES_PASSWORD: ${PARTNER_DB_PASSWORD:?Set PARTNER_DB_PASSWORD in .env}
+    volumes:
+      - business-partner-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [hulysses-network]
+
+  business-partner-service:
+    image: hulysses-one/business-partner-service:etapa-3
+    build:
+      context: .
+      dockerfile: business-partner-service/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      CONFIG_SERVER_URL: ${CONFIG_SERVER_URL:-http://config-server:${CONFIG_SERVER_PORT:-8888}}
+      CONFIG_CONNECT_TIMEOUT: ${CONFIG_CONNECT_TIMEOUT:-2000}
+      CONFIG_READ_TIMEOUT: ${CONFIG_READ_TIMEOUT:-5000}
+      PARTNER_SERVER_PORT: ${PARTNER_SERVER_PORT:-8081}
+      PARTNER_DB_URL: ${PARTNER_DB_URL:-jdbc:postgresql://business-partner-db:5432/${PARTNER_DB_NAME:-business_partner}}
+      PARTNER_DB_USERNAME: ${PARTNER_DB_USERNAME:-business_partner}
+      PARTNER_DB_PASSWORD: ${PARTNER_DB_PASSWORD:?Set PARTNER_DB_PASSWORD in .env}
+      PARTNER_DB_SCHEMA: ${PARTNER_DB_SCHEMA:-business_partner_service}
+      JPA_CREATE_NAMESPACES: ${JPA_CREATE_NAMESPACES:-true}
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-update}
+      JPA_SHOW_SQL: ${JPA_SHOW_SQL:-false}
+    ports:
+      - "${PARTNER_HOST_PORT:-8081}:${PARTNER_SERVER_PORT:-8081}"
+    depends_on:
+      config-server:
+        condition: service_healthy
+      business-partner-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:$$PARTNER_SERVER_PORT/actuator/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks: [hulysses-network]
+
+  hulysses-app:
+    image: hulysses-one/hulysses-app:etapa-3
+    build:
+      context: .
+      dockerfile: hulysses-app/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      CONFIG_SERVER_URL: ${CONFIG_SERVER_URL:-http://config-server:${CONFIG_SERVER_PORT:-8888}}
+      CONFIG_CONNECT_TIMEOUT: ${CONFIG_CONNECT_TIMEOUT:-2000}
+      CONFIG_READ_TIMEOUT: ${CONFIG_READ_TIMEOUT:-5000}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      DB_URL: ${DB_URL:-jdbc:postgresql://hulysses-db:5432/${DB_NAME:-hulysses}}
+      DB_USERNAME: ${DB_USERNAME:-hulysses}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      DB_SCHEMA: ${DB_SCHEMA:-public}
+      BUSINESS_PARTNER_SERVICE_URL: ${BUSINESS_PARTNER_SERVICE_URL:-http://business-partner-service:${PARTNER_SERVER_PORT:-8081}}
+      FEIGN_CONNECT_TIMEOUT: ${FEIGN_CONNECT_TIMEOUT:-2000}
+      FEIGN_READ_TIMEOUT: ${FEIGN_READ_TIMEOUT:-5000}
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-update}
+      JPA_SHOW_SQL: ${JPA_SHOW_SQL:-false}
+    ports:
+      - "${APP_HOST_PORT:-8080}:${SERVER_PORT:-8080}"
+    depends_on:
+      config-server:
+        condition: service_healthy
+      hulysses-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:$$SERVER_PORT/actuator/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks: [hulysses-network]
+
+volumes:
+  hulysses-db-data:
+  business-partner-db-data:
+
+networks:
+  hulysses-network:

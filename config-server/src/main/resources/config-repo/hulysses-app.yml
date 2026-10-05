@@ -1,0 +1,14 @@
+spring:
+  jpa:
+    properties:
+      hibernate:
+        default_schema: ${DB_SCHEMA:public}
+  cloud:
+    openfeign:
+      client:
+        config:
+          business-partner-service:
+            connectTimeout: ${FEIGN_CONNECT_TIMEOUT:2000}
+            readTimeout: ${FEIGN_READ_TIMEOUT:5000}
+server:
+  port: ${SERVER_PORT:8080}

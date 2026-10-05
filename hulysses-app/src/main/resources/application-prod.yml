@@ -1,0 +1,8 @@
+spring:
+  config:
+    import: configserver:${CONFIG_SERVER_URL:http://config-server:8888}
+  cloud:
+    config:
+      enabled: true
+  datasource:
+    password: ${DB_PASSWORD}

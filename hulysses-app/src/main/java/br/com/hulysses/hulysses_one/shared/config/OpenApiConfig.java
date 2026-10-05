@@ -12,7 +12,7 @@ public class OpenApiConfig {
     public OpenAPI hulyssesOpenAPI() {
         return new OpenAPI().info(new Info()
                 .title("Hulysses One API")
-                .version("etapa-2")
+                .version("etapa-3")
                 .description("Produtos e vendas; cadastro de parceiros consumido por HTTP via OpenFeign."));
     }
 }

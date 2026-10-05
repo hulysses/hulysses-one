@@ -1,0 +1,15 @@
+.git
+.idea
+.agents
+.codex
+.aws
+.m2
+**/target
+**/logs
+*.log
+.env
+.env.*
+**/application.properties
+**/*.iml
+**/*.iws
+**/*.ipr

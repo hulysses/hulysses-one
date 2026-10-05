@@ -1,0 +1,7 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://hulysses-db:5432/hulysses}
+    username: ${DB_USERNAME:hulysses}
+services:
+  business-partner:
+    url: ${BUSINESS_PARTNER_SERVICE_URL:http://business-partner-service:8081}

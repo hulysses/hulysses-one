@@ -1,0 +1,8 @@
+spring:
+  config:
+    import: configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+  cloud:
+    config:
+      enabled: true
+  datasource:
+    password: ${PARTNER_DB_PASSWORD:postgres} # Local development default, never served by Config Server.

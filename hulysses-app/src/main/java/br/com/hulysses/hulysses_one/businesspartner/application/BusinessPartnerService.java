@@ -10,10 +10,10 @@ import feign.FeignException;
 import feign.codec.DecodeException;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
+
 import java.util.List;
 import java.util.function.Supplier;
 
-/** Coordinates the remote API; partner business rules exist only in the partner application. */
 @Service
 public class BusinessPartnerService {
     private final BusinessPartnerClient client;
@@ -33,20 +33,39 @@ public class BusinessPartnerService {
     }
 
     public void delete(Long id) {
-        invoke(() -> { client.delete(id); return null; });
+        invoke(() -> {
+            client.delete(id);
+            return null;
+        });
     }
 
-    public BusinessPartnerResponse getById(Long id) { return invoke(() -> client.getById(id)); }
+    public BusinessPartnerResponse getById(Long id) {
+        return invoke(() -> client.getById(id));
+    }
+
     public BusinessPartnerResponse findSupplierById(Long id) {
         return invoke(() -> client.eligibleById(id, "SUPPLIER"));
     }
+
     public BusinessPartnerResponse findCustomerById(Long id) {
         return invoke(() -> client.eligibleById(id, "CUSTOMER"));
     }
-    public List<BusinessPartnerResponse> findAll() { return invoke(client::findAll); }
-    public List<BusinessPartnerResponse> findCustomers() { return invoke(client::findCustomers); }
-    public List<BusinessPartnerResponse> findSuppliers() { return invoke(client::findSuppliers); }
-    public List<BusinessPartnerResponse> findByName(String name) { return invoke(() -> client.findByName(name)); }
+
+    public List<BusinessPartnerResponse> findAll() {
+        return invoke(client::findAll);
+    }
+
+    public List<BusinessPartnerResponse> findCustomers() {
+        return invoke(client::findCustomers);
+    }
+
+    public List<BusinessPartnerResponse> findSuppliers() {
+        return invoke(client::findSuppliers);
+    }
+
+    public List<BusinessPartnerResponse> findByName(String name) {
+        return invoke(() -> client.findByName(name));
+    }
 
     private <T> T invoke(Supplier<T> operation) {
         try {
@@ -54,8 +73,6 @@ public class BusinessPartnerService {
         } catch (DecodeException exception) {
             throw new ExternalServiceUnavailableException(exception);
         } catch (FeignException exception) {
-            // Only a recognized public ApiError can represent a business rejection.
-            // A proxy's 404/HTML page or incompatible response is a communication failure.
             ApiError error = readError(exception);
             if (error != null && error.status() == exception.status()
                     && (error.status() == 400 || error.status() == 404 || error.status() == 409)) {
