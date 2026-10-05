@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: business-partner-service
+  datasource:
+    url: ${PARTNER_DB_URL:jdbc:postgresql://localhost:5432/hulysses_one}
+    username: ${PARTNER_DB_USERNAME:postgres}
+    password: ${PARTNER_DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        default_schema: ${PARTNER_DB_SCHEMA:business_partner_service}
+        hbm2ddl:
+          create_namespaces: true
+server:
+  port: ${PARTNER_SERVER_PORT:8081}
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never

@@ -1,0 +1,34 @@
+# Configuração versionada. application.properties local pode sobrescrever o datasource.
+spring:
+  application:
+    name: hulysses-one
+  cloud:
+    openfeign:
+      client:
+        config:
+          business-partner-service:
+            connectTimeout: 2000
+            readTimeout: 5000
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/hulysses_one}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        default_schema: ${DB_SCHEMA:public}
+
+services:
+  business-partner:
+    url: ${BUSINESS_PARTNER_SERVICE_URL:http://localhost:8081}
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
