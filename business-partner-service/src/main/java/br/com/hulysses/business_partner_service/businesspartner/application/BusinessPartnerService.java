@@ -11,6 +11,8 @@ import br.com.hulysses.business_partner_service.shared.exception.DuplicateEntity
 import br.com.hulysses.business_partner_service.shared.exception.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
+import br.com.hulysses.business_partner_service.businesspartner.messaging.BusinessPartnerCreatedEvent;
 
 import java.util.List;
 
@@ -19,11 +21,14 @@ import java.util.List;
 public class BusinessPartnerService {
 
     private final BusinessPartnerRepository repository;
+    private final ApplicationEventPublisher events;
 
     public BusinessPartnerService(
-            BusinessPartnerRepository repository
+            BusinessPartnerRepository repository,
+            ApplicationEventPublisher events
     ) {
         this.repository = repository;
+        this.events = events;
     }
 
     @Transactional
@@ -68,7 +73,9 @@ public class BusinessPartnerService {
         request.roles()
                 .forEach(partner::addRole);
 
-        return BusinessPartnerResponse.from(repository.save(partner));
+        BusinessPartner saved = repository.save(partner);
+        events.publishEvent(BusinessPartnerCreatedEvent.forPartner(saved.getId()));
+        return BusinessPartnerResponse.from(saved);
     }
 
     @Transactional

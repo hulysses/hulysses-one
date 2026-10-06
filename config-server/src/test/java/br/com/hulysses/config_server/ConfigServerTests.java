@@ -42,8 +42,14 @@ class ConfigServerTests {
         assertThat(properties.get("spring.datasource.url").asText()).contains(database);
         assertThat(properties.get("spring.jpa.open-in-view").asBoolean()).isFalse();
         assertThat(properties.get("spring.jpa.hibernate.ddl-auto").asText()).contains("JPA_DDL_AUTO");
-        assertThat(properties).doesNotContainKey("spring.datasource.password");
-        assertThat(body).doesNotContain("DB_PASSWORD", "PARTNER_DB_PASSWORD");
+        assertThat(properties).doesNotContainKeys("spring.datasource.password", "spring.rabbitmq.password");
+        assertThat(body).doesNotContain("DB_PASSWORD", "PARTNER_DB_PASSWORD", "RABBITMQ_PASSWORD");
+        if (application.equals("business-partner-service")) {
+            assertThat(properties.get("spring.rabbitmq.host").asText())
+                    .contains(profile.equals("prod") ? "rabbitmq" : "localhost");
+            assertThat(properties.get("spring.batch.job.enabled").asBoolean()).isFalse();
+            assertThat(properties.get("spring.batch.jdbc.initialize-schema").asText()).contains("always");
+        }
         if (application.equals("hulysses-app")) {
             assertThat(properties.get("services.business-partner.url").asText())
                     .contains(profile.equals("prod") ? "business-partner-service:8081" : "localhost:8081");

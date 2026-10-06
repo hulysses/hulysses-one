@@ -1,4 +1,6 @@
 spring:
+  rabbitmq:
+    password: ${RABBITMQ_PASSWORD}
   config:
     import: configserver:${CONFIG_SERVER_URL:http://config-server:8888}
   cloud:

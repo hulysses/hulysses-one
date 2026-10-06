@@ -1,4 +1,17 @@
 spring:
+  rabbitmq:
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:hulysses}
+    connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:2000}
+    listener:
+      simple:
+        prefetch: 1
+        default-requeue-rejected: false
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: ${BATCH_INITIALIZE_SCHEMA:always}
   jpa:
     properties:
       hibernate:
@@ -7,3 +20,14 @@ spring:
           create_namespaces: ${JPA_CREATE_NAMESPACES:true}
 server:
   port: ${PARTNER_SERVER_PORT:8081}
+messaging:
+  enabled: ${MESSAGING_ENABLED:true}
+  consumer:
+    enabled: ${PARTNER_CONSUMER_ENABLED:false}
+  business-partner:
+    exchange: ${PARTNER_ACTIVITY_EXCHANGE:business-partner.events}
+    queue: ${PARTNER_ACTIVITY_QUEUE:business-partner.activities}
+    routing-key: ${PARTNER_ACTIVITY_ROUTING_KEY:business-partner.created}
+batch:
+  business-partner:
+    sample: classpath:batch/business-partners.csv

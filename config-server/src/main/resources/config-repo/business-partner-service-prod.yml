@@ -1,4 +1,6 @@
 spring:
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
   datasource:
     url: ${PARTNER_DB_URL:jdbc:postgresql://business-partner-db:5432/business_partner}
     username: ${PARTNER_DB_USERNAME:business_partner}

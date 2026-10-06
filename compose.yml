@@ -1,6 +1,6 @@
 services:
   config-server:
-    image: hulysses-one/config-server:etapa-3
+    image: hulysses-one/config-server:etapa-4
     build:
       context: .
       dockerfile: config-server/Dockerfile
@@ -49,13 +49,42 @@ services:
       retries: 12
     networks: [hulysses-network]
 
+  rabbitmq:
+    image: rabbitmq:4-management
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-hulysses}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    ports:
+      - "127.0.0.1:${RABBITMQ_HOST_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [hulysses-network]
+
   business-partner-service:
-    image: hulysses-one/business-partner-service:etapa-3
+    image: hulysses-one/business-partner-service:etapa-4
     build:
       context: .
       dockerfile: business-partner-service/Dockerfile
-    environment:
+    environment: &partner-environment
       SPRING_PROFILES_ACTIVE: prod
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-hulysses}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
+      RABBITMQ_CONNECTION_TIMEOUT: ${RABBITMQ_CONNECTION_TIMEOUT:-2000}
+      PARTNER_CONSUMER_ENABLED: "false"
+      PARTNER_ACTIVITY_EXCHANGE: ${PARTNER_ACTIVITY_EXCHANGE:-business-partner.events}
+      PARTNER_ACTIVITY_QUEUE: ${PARTNER_ACTIVITY_QUEUE:-business-partner.activities}
+      PARTNER_ACTIVITY_ROUTING_KEY: ${PARTNER_ACTIVITY_ROUTING_KEY:-business-partner.created}
+      BATCH_INITIALIZE_SCHEMA: always
       CONFIG_SERVER_URL: ${CONFIG_SERVER_URL:-http://config-server:${CONFIG_SERVER_PORT:-8888}}
       CONFIG_CONNECT_TIMEOUT: ${CONFIG_CONNECT_TIMEOUT:-2000}
       CONFIG_READ_TIMEOUT: ${CONFIG_READ_TIMEOUT:-5000}
@@ -74,6 +103,29 @@ services:
         condition: service_healthy
       business-partner-db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:$$PARTNER_SERVER_PORT/actuator/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks: [hulysses-network]
+
+  business-partner-consumer:
+    image: hulysses-one/business-partner-service:etapa-4
+    environment:
+      <<: *partner-environment
+      PARTNER_SERVER_PORT: 8082
+      PARTNER_CONSUMER_ENABLED: "true"
+      JPA_DDL_AUTO: validate
+      BATCH_INITIALIZE_SCHEMA: never
+    depends_on:
+      business-partner-service:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:$$PARTNER_SERVER_PORT/actuator/health >/dev/null"]
       interval: 10s
@@ -83,7 +135,7 @@ services:
     networks: [hulysses-network]
 
   hulysses-app:
-    image: hulysses-one/hulysses-app:etapa-3
+    image: hulysses-one/hulysses-app:etapa-4
     build:
       context: .
       dockerfile: hulysses-app/Dockerfile
@@ -93,7 +145,7 @@ services:
       CONFIG_CONNECT_TIMEOUT: ${CONFIG_CONNECT_TIMEOUT:-2000}
       CONFIG_READ_TIMEOUT: ${CONFIG_READ_TIMEOUT:-5000}
       SERVER_PORT: ${SERVER_PORT:-8080}
-      DB_URL: ${DB_URL:-jdbc:postgresql://hulysses-db:5432/${DB_NAME:-hulysses}}
+      DB_URL: ${DOCKER_DB_URL:-jdbc:postgresql://hulysses-db:5432/${DB_NAME:-hulysses}}
       DB_USERNAME: ${DB_USERNAME:-hulysses}
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       DB_SCHEMA: ${DB_SCHEMA:-public}
@@ -120,6 +172,7 @@ services:
 volumes:
   hulysses-db-data:
   business-partner-db-data:
+  rabbitmq-data:
 
 networks:
   hulysses-network:

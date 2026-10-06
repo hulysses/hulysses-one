@@ -3,7 +3,7 @@
 Mini ERP de parceiros de negócio, produtos e pedidos, desenvolvido com Java 21, Spring Boot 4.1.0,
 Spring Data JPA e PostgreSQL. As etapas abaixo registram a evolução do projeto.
 
-**Execução e testes atuais:** consulte a Etapa 3.
+**Execução e testes atuais:** consulte a Etapa 4 e o [guia HTML](docs/guia-testes-etapa-4.html). As etapas anteriores registram o histórico.
 
 ```text
 hulysses-one/
@@ -213,7 +213,7 @@ mudanças exigem reiniciar a API. Mudanças em variáveis do Compose exigem recr
 
 | Variáveis | Finalidade / padrão no Compose |
 | --- | --- |
-| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Principal: `jdbc:postgresql://hulysses-db:5432/hulysses`; usuário hulysses; senha obrigatória. |
+| `DOCKER_DB_URL` (Compose atual), `DB_USERNAME`, `DB_PASSWORD` | Principal: `jdbc:postgresql://hulysses-db:5432/hulysses`; usuário hulysses; senha obrigatória. |
 | `PARTNER_DB_URL`, `PARTNER_DB_USERNAME`, `PARTNER_DB_PASSWORD` | Parceiros: `jdbc:postgresql://business-partner-db:5432/business_partner`; usuário business_partner; senha obrigatória. |
 | `DB_NAME`, `PARTNER_DB_NAME` | hulysses / business_partner. |
 | `DB_SCHEMA`, `PARTNER_DB_SCHEMA` | public / business_partner_service. |
@@ -250,9 +250,13 @@ docker compose ps -a
 ```
 
 Espere cinco serviços saudáveis. Java/Maven/PostgreSQL no host não são necessários para o Compose.
-Se o principal tentar acessar localhost:5432, use `DB_URL=jdbc:postgresql://hulysses-db:5432/hulysses`
-no `.env`, remova uma possível URL antiga da sessão com `Remove-Item Env:DB_URL -ErrorAction SilentlyContinue`
+No Compose atual, `DB_URL` fica reservado ao desenvolvimento local. Para personalizar a URL do
+container, use `DOCKER_DB_URL=jdbc:postgresql://hulysses-db:5432/hulysses` no `.env`;
+sem esse override, o Compose já usa `hulysses-db` e `DB_NAME`.
+Se houver configurações antigas, remova-as com `Remove-Item Env:DOCKER_DB_URL, Env:DB_USERNAME -ErrorAction SilentlyContinue`
 e execute `docker compose up -d --force-recreate --wait hulysses-app`.
+`DB_USERNAME` deve corresponder ao usuário do volume existente (por exemplo, `postgres`);
+alterar o `.env` não cria usuários nem modifica senhas no banco já inicializado.
 
 ```bash
 docker compose logs -f            # acompanhar; Ctrl+C encerra a visualização
@@ -373,3 +377,148 @@ Reduz divergências de propriedades espalhadas entre aplicações e ambientes, f
 por nome/profile. Config Server não é um armazenamento seguro de secrets por si só.
 
 </details>
+
+<details>
+<summary><strong>Etapa 4 — Mensageria e processamento em lote</strong></summary>
+
+## Arquitetura e responsabilidades
+
+Esta etapa acrescenta registro assíncrono
+de atividade por RabbitMQ e importação de parceiros por CSV com Spring Batch, reutilizando
+DTOs, validações, service e repository existentes.
+
+```text
+POST BusinessPartner → commit PostgreSQL → Producer → RabbitMQ → Queue → Consumer → Atividade
+CSV → ItemReader → ItemProcessor → ItemWriter → PostgreSQL
+```
+
+O `hulysses-app` mantém produtos, pedidos e integração REST/Feign.
+O container `business-partner-consumer` usa a mesma imagem e o banco do domínio de parceiros;
+apenas ele habilita o listener no Compose, permitindo pará-lo sem interromper o cadastro.
+
+## Mensageria e processamento em lote
+
+| Componente | Implementação |
+| --- | --- |
+| Broker | RabbitMQ com Management UI, healthcheck e volume próprio. |
+| Exchange / fila / routing key | `business-partner.events` / `business-partner.activities` / `business-partner.created`. |
+| Mensagem JSON | `eventId`, `eventType`, `businessPartnerId` e `occurredAt`. |
+| Producer | Publica `BUSINESS_PARTNER_CREATED` após confirmar o cadastro no banco. |
+| Consumer | Persiste a atividade; ACK após gravação e `eventId` para evitar duplicidade. |
+| Job / Step | `businessPartnerImportJob` / `businessPartnerImportStep`. |
+| Reader / Processor / Writer | FlatFileItemReader; normalização/validação; gravação pelo service existente. |
+| Chunks | Blocos de 10 registros, cada um com sua transação. |
+
+O cadastro não aguarda o processamento do histórico. Fila/exchange são duráveis e mensagens
+são persistentes. Sem outbox/retry/DLQ: falha do broker fica no log e não desfaz o cadastro,
+mas a mensagem não possui recuperação automática. A espera na fila vale para mensagens aceitas pelo RabbitMQ.
+
+O [CSV de exemplo](business-partner-service/src/main/resources/batch/business-partners.csv)
+usa `name,document,email,phone,type,roles`. `type` é INDIVIDUAL/COMPANY;
+`roles` pode conter CUSTOMER/SUPPLIER separados por `;`. Inválidos e documentos repetidos são filtrados.
+Cadastros via Batch também geram atividades após o commit dos chunks.
+
+Spring Boot gerencia Spring AMQP 4.1.0 e Spring Batch 6.0.4. Metadados `BATCH_*` ficam no schema
+`public` do banco de parceiros, usando o mesmo datasource. A API inicializa essas tabelas;
+o consumer as reutiliza. Não há execução automática no startup ou scheduler; o endpoint aguarda o resultado do Job.
+
+## Configuração e execução
+
+Config Server mantém as variantes dev/prod; host, porta e credenciais RabbitMQ são externos.
+No Docker, utiliza-se `rabbitmq:5672`. Senhas ficam nas variáveis locais, fora dos arquivos
+servidos pelo Config Server. Testes usam H2, sem broker externo.
+
+Crie `.env` apenas se ainda não existir e preencha **DB_PASSWORD, PARTNER_DB_PASSWORD e RABBITMQ_PASSWORD**.
+Se já existir, acrescente as opções de `.env.example` preservando as credenciais atuais.
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+notepad .env
+docker compose config --quiet
+docker compose up -d --build --wait --wait-timeout 240
+docker compose ps -a
+```
+
+Espere sete serviços saudáveis: os cinco da Etapa 3, `rabbitmq` e `business-partner-consumer`.
+O consumer não publica porta no host. `docker compose down` preserva volumes; não use `down -v` nos testes.
+
+| Acesso padrão | Endereço |
+| --- | --- |
+| API principal / Swagger | http://localhost:8080/swagger-ui.html |
+| Parceiros, histórico e Batch / Swagger | http://localhost:8081/swagger-ui.html |
+| RabbitMQ Management | http://localhost:15672 — usuário/senha do `.env`. |
+| Config Server | http://localhost:8888/business-partner-service/prod |
+
+## Como testar
+
+| Cenário | Verificação esperada |
+| --- | --- |
+| Mensageria normal | Cadastrar via POST `/business-partners`; conferir `Published`/`Processed` nos logs e atividade em `GET :8081/business-partners/{id}/activities`. |
+| Consumer parado | Parar somente `business-partner-consumer`; cadastrar outro parceiro; POST retorna sucesso e fila mostra Consumers=0 / Ready≥1. |
+| Retomada | Iniciar o consumer; aguardar consumo e consultar o histórico do parceiro. |
+| Batch | Importar CSV; conferir status, contadores, chunks nos logs e parceiros persistidos. |
+| Reimportação | Repetir CSV; documentos existentes são filtrados, sem duplicar cadastros. |
+
+No cenário de indisponibilidade, mantenha API, banco e RabbitMQ ativos. Na Management UI,
+inspecione `business-partner.activities` com **requeue habilitado**, para preservar a mensagem.
+Use estes comandos antes e depois do novo cadastro:
+
+```powershell
+docker compose stop business-partner-consumer
+# Cadastre outro parceiro e confira a mensagem aguardando na Management UI.
+docker compose start business-partner-consumer
+docker compose logs --tail 80 business-partner-service business-partner-consumer
+```
+
+Para executar o Batch com o exemplo incorporado ou enviar CSV por multipart:
+
+```powershell
+Invoke-RestMethod 'http://localhost:8081/batch/business-partners/import' -Method Post
+curl.exe -X POST 'http://localhost:8081/batch/business-partners/import' `
+  -F 'file=@business-partner-service/src/main/resources/batch/business-partners.csv'
+docker compose logs --tail 100 business-partner-service
+Invoke-RestMethod 'http://localhost:8081/business-partners'
+```
+
+Primeira importação sem os documentos do exemplo: **COMPLETED, readCount=13, writeCount=12,
+filterCount=1 e commitCount=2**; logs mostram 10 e 2 gravações. Ao repetir: writeCount=0 e filterCount=13.
+Verifique sempre `status`: estrutura/cabeçalho incorretos podem retornar HTTP 200 com `FAILED`.
+O chunk com falha é revertido; chunks anteriores confirmados permanecem.
+
+Testes automatizados: `mvn clean verify` e `scripts/test-etapa4.ps1`:
+
+```powershell
+mvn clean verify
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-etapa4.ps1
+```
+
+O script usa projeto/volumes separados: APIs 18080/18081, Config Server 18888 e Management 15674.
+Cria `.env.etapa4-validation` ignorado pelo Git e preserva os dados. Instruções completas estão no guia.
+
+## Reflexão arquitetural
+
+### 1. Qual operação foi escolhida para comunicação assíncrona?
+
+Registro de atividade relacionada ao cadastro de BusinessPartner através do RabbitMQ.
+
+### 2. Por que essa operação não precisa ser concluída durante a requisição original?
+
+O cadastro principal pode retornar sucesso sem aguardar o processamento secundário da atividade/histórico.
+
+### 3. O que acontece se o consumidor estiver temporariamente indisponível?
+
+Mensagens aceitas pelo RabbitMQ permanecem na fila e são processadas quando o consumer voltar.
+A API continua disponível.
+
+### 4. Qual funcionalidade foi escolhida para Batch?
+
+Importação de Business Partners através de CSV.
+
+### 5. Por que é adequada para Batch?
+
+Vários registros passam pelo mesmo pipeline de leitura, validação/processamento e persistência em chunks.
+
+### 6. Quando utilizar REST, mensageria e Batch no Hulysses One?
+
+REST para consultas/cadastros com resposta imediata; mensageria para atividades secundárias posteriores;
+Batch para conjuntos de dados, como importações. O endpoint REST inicia o Job, e Spring Batch processa o arquivo.
