@@ -5,7 +5,7 @@ Spring Data JPA e PostgreSQL. As etapas abaixo registram a evolução do projeto
 
 ```text
 hulysses-one/
-├── pom.xml                     parent e agregador Maven
+├── pom.xml                     
 ├── hulysses-app/                produtos, pedidos e integração Feign
 ├── business-partner-service/    cadastro de parceiros
 ├── config-server/               configurações centralizadas
