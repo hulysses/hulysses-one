@@ -3,8 +3,6 @@
 Mini ERP de parceiros de negócio, produtos e pedidos, desenvolvido com Java 21, Spring Boot 4.1.0,
 Spring Data JPA e PostgreSQL. As etapas abaixo registram a evolução do projeto.
 
-**Execução e testes atuais:** consulte a Etapa 4 e o [guia HTML](docs/guia-testes-etapa-4.html). As etapas anteriores registram o histórico.
-
 ```text
 hulysses-one/
 ├── pom.xml                     parent e agregador Maven
